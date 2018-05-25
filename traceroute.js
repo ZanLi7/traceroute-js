@@ -6,30 +6,44 @@ const udpSocket = dgram.createSocket('udp4');
 
 const HOST = process.argv[2];
 const MESSAGE = new Buffer('');
-let ttl = 7;
+let ttl = 1;
 let interval;
+let startTime;
+let replyIP;
 
 console.log(`traceroute to ${HOST} (${HOST}), 64 hops max, 42 byte packets`);
 
 icmpSocket.on('message', function(buffer, source) {
-  console.log(` 1  ${source}`);
-
-  if (source == HOST) {
-    console.log('destination reached');
-    clearInterval(interval);
-    process.exit();
-  }
+  replyIP = source;
 });
 
 udpSocket.bind(1234, () => {
   sendPacket(ttl);
-  startTrace();
+  startTime = Date.now();
 });
 
-function startTrace() {
-  interval = setInterval(() => {
+function checkReply() {
+  const elapsedTime = Date.now() - startTime;
+
+  if (replyIP) {
+    console.log(` 1  ${replyIP} ${elapsedTime} ms`);
+
+    if (replyIP == HOST) {
+      console.log('destination reached');
+      clearInterval(interval);
+      process.exit();
+    }
+    replyIP = null;
     sendPacket(++ttl);
-  }, 5000);
+  } else {
+    if (elapsedTime > 5000) {
+      console.log('No answer');
+      startTime = Date.now();
+      sendPacket(++ttl);
+    } else {
+      setTimeout(checkReply, 300);
+    }
+  }
 }
 
 function sendPacket(ttl) {
@@ -42,6 +56,7 @@ function sendPacket(ttl) {
       if (err) throw err;
     });
   }
+  checkReply();
 }
 
 function getRandomPort() {
