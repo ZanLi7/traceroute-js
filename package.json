@@ -1,0 +1,21 @@
+{
+  "name": "traceroute",
+  "version": "1.0.0",
+  "description": "A traceroute implementation in javascript using dgram and raw-sockets",
+  "main": "traceroute.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "traceroute",
+    "javascript",
+    "js",
+    "raw-sockets",
+    "dgram"
+  ],
+  "author": "Frank Stoeckli",
+  "license": "Beerware",
+  "devDependencies": {
+    "raw-socket": "^1.6.0"
+  }
+}
