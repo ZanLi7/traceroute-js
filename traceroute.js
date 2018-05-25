@@ -8,18 +8,19 @@ const HOST = process.argv[2];
 const MESSAGE = new Buffer('');
 let PORT;
 let ttl = 1;
-let interval;
 let startTime;
 let replyIP;
+let timeout;
 
 console.log(`traceroute to ${HOST} (${HOST}), 64 hops max, 42 byte packets`);
 
 icmpSocket.on('message', function(buffer, source) {
+  //console.log('icmp received from ' + source);
   let p = buffer.toString('hex').substr(100, 4);
   let portNumber = parseInt(p, 16);
-  if (PORT === portNumber) {
-    replyIP = source;
-  }
+  //if (PORT === portNumber) {
+  handleReply(source);
+  //}
 });
 
 udpSocket.bind(1234, () => {
@@ -29,35 +30,33 @@ udpSocket.bind(1234, () => {
 function sendPacket(ttl) {
   startTime = Date.now();
   PORT = getRandomPort();
+  //console.log('sending udp packge to port: ' + PORT + ' with ttl ' + ttl);
   if (udpSocket) {
     udpSocket.setTTL(ttl);
     udpSocket.send(MESSAGE, 0, MESSAGE.length, PORT, HOST, function(err) {
       if (err) throw err;
     });
   }
-  checkReply();
+  timeout = setTimeout(handleReply, 10000);
 }
 
-function checkReply() {
+function handleReply(source) {
+  if (timeout) {
+    clearTimeout(timeout);
+  }
+
   const elapsedTime = Date.now() - startTime;
 
-  if (replyIP) {
-    console.log(` ${ttl}  ${replyIP} ${elapsedTime} ms`);
+  if (source) {
+    console.log(` ${ttl}  ${source} ${elapsedTime} ms`);
 
-    if (replyIP == HOST) {
-      clearInterval(interval);
+    if (source == HOST) {
       process.exit();
     }
-    replyIP = null;
-    sendPacket(++ttl);
   } else {
-    if (elapsedTime > 5000) {
-      console.log(` ${ttl}   *`);
-      sendPacket(++ttl);
-    } else {
-      setTimeout(checkReply, 100);
-    }
+    console.log(` ${ttl}   *`);
   }
+  sendPacket(++ttl);
 }
 
 function getRandomPort() {
