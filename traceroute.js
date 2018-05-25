@@ -9,7 +9,7 @@ const MESSAGE = new Buffer('');
 let ttl = 7;
 let interval;
 
-console.log(`traceroute to ${HOST} (${HOST}), 64 hops max, 52 byte packets`);
+console.log(`traceroute to ${HOST} (${HOST}), 64 hops max, 42 byte packets`);
 
 icmpSocket.on('message', function(buffer, source) {
   console.log(` 1  ${source}`);
@@ -45,5 +45,7 @@ function sendPacket(ttl) {
 }
 
 function getRandomPort() {
-  return Math.floor(Math.random() * (33534 - 33434) + 33434);
+  const PORT_MIN = 33434;
+  const PORT_MAX = 33534;
+  return Math.floor(Math.random() * (PORT_MAX - PORT_MIN) + PORT_MIN);
 }
