@@ -9,9 +9,11 @@ const DESTINATION_HOST = process.argv[2];
 let DESTINATION_IP;
 
 let PORT;
-let ttl = 0;
+let ttl = 1;
 let startTime;
 let timeout;
+
+let numberOfAttempts = 0;
 
 const MAX_TIMEOUT_IN_MILLISECONDS = 5000;
 const MAX_HOPS = 64;
@@ -25,12 +27,6 @@ setImmediate(() => {
     }
   });
 });
-
-function getIPAddress(host) {
-  const validIPAddress = new RegExp("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
-  if (!validIPAddress.test(host)) return dns.lookup(host);
-  return host;
-}
 
 async function startTrace() {
   DESTINATION_IP = await getIPAddress(DESTINATION_HOST);
@@ -47,7 +43,12 @@ function sendPacket() {
   startTime = Date.now();
   PORT = getRandomPort();
 
-  ttl++;
+  if (numberOfAttempts >= 3) {
+    numberOfAttempts = 0;
+    ttl++;
+  }
+  numberOfAttempts++;
+
   udpSocket.setTTL(ttl);
   udpSocket.send(new Buffer(''), 0, 0, PORT, DESTINATION_IP, function (err) {
     if (err) throw err;
@@ -55,7 +56,7 @@ function sendPacket() {
   });
 }
 
-
+let timeOutLine;
 
 function logReply(source) {
   if (timeout) {
@@ -64,17 +65,30 @@ function logReply(source) {
 
   if (source) {
     const elapsedTime = Date.now() - startTime;
-    console.log(` ${ttl}  ${source} ${elapsedTime} ms`);
 
-    if (source == DESTINATION_IP || ttl >= MAX_HOPS) {
+    if (numberOfAttempts === 1) {
+      if (ttl > 1) {
+        process.stdout.write('\n');
+      }
+      process.stdout.write(` ${ttl}  ${source} ${elapsedTime} ms`);
+    } else {
+      process.stdout.write(`   ${elapsedTime} ms`);
+    }
+
+    if ((source == DESTINATION_IP && numberOfAttempts >= 3) || ttl >= MAX_HOPS) {
       process.exit();
     }
   } else {
-    console.log(` ${ttl}   *`);
+    if (numberOfAttempts === 1) {
+      process.stdout.write('\n');
+      process.stdout.write(` ${ttl}   *`);
+    } else {
+      process.stdout.write('  * ');
+    }
   }
 
-  // This is weird but need to be done. Otherwise the next 
-  // package won't be sent.
+  // Postpone sendPacket to the next tick of the event loop,
+  // otherwise the package won't be sent.
   setImmediate(sendPacket);
 }
 
@@ -82,4 +96,10 @@ function getRandomPort() {
   const PORT_MIN = 33434;
   const PORT_MAX = 33534;
   return Math.floor(Math.random() * (PORT_MAX - PORT_MIN) + PORT_MIN);
+}
+
+function getIPAddress(host) {
+  const validIPAddress = new RegExp("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+  if (!validIPAddress.test(host)) return dns.lookup(host);
+  return host;
 }
