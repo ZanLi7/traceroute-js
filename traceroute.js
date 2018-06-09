@@ -5,9 +5,8 @@ const icmpSocket = raw.createSocket('icmp');
 const udpSocket = dgram.createSocket('udp4');
 
 const HOST = process.argv[2];
-const MESSAGE = new Buffer('');
 let PORT;
-let ttl = 1;
+let ttl = 0;
 let startTime;
 let timeout;
 
@@ -23,16 +22,18 @@ icmpSocket.on('message', function (buffer, source) {
 });
 
 udpSocket.bind(1234, () => {
-  sendPacket(ttl);
+  sendPacket();
 });
 
-function sendPacket(ttl) {
+function sendPacket() {
+
   startTime = Date.now();
   PORT = getRandomPort();
   //console.log('sending udp packge to port: ' + PORT + ' with ttl ' + ttl);
 
+  ttl++;
   udpSocket.setTTL(ttl);
-  udpSocket.send(MESSAGE, 0, MESSAGE.length, PORT, HOST, function (err) {
+  udpSocket.send(new Buffer(''), 0, 0, PORT, HOST, function (err) {
     if (err) {
       console.log('error ', err);
     }
@@ -57,11 +58,10 @@ function handleReply(source) {
   } else {
     console.log(` ${ttl}   *`);
   }
-  ttl = ttl + 1;
 
   // This is weird but need to be done. Otherwise the next 
   // package won't be sent.
-  setTimeout(() => { sendPacket(ttl) }, 0);
+  setTimeout(sendPacket, 0);
 }
 
 function getRandomPort() {
