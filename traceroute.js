@@ -16,7 +16,7 @@ console.log(`traceroute to ${HOST} (${HOST}), 64 hops max, 42 byte packets`);
 icmpSocket.on('message', function (buffer, source) {
   let p = buffer.toString('hex').substr(100, 4);
   let portNumber = parseInt(p, 16);
-  console.log(`icmp received from ${source} and port ${portNumber} (relevant port now is ${PORT})`);
+  //console.log(`icmp received from ${source} and port ${portNumber} (relevant port now is ${PORT})`);
   if (PORT === portNumber) {
     handleReply(source);
   }
@@ -29,14 +29,14 @@ udpSocket.bind(1234, () => {
 function sendPacket(ttl) {
   startTime = Date.now();
   PORT = getRandomPort();
-  console.log('sending udp packge to port: ' + PORT + ' with ttl ' + ttl);
+  //console.log('sending udp packge to port: ' + PORT + ' with ttl ' + ttl);
 
   udpSocket.setTTL(ttl);
   udpSocket.send(MESSAGE, 0, MESSAGE.length, PORT, HOST, function (err) {
     if (err) {
       console.log('error ', err);
     }
-    console.log('udp package has been sent');
+    //console.log('udp package has been sent');
     timeout = setTimeout(handleReply, 1000);
   });
 }
@@ -58,7 +58,10 @@ function handleReply(source) {
     console.log(` ${ttl}   *`);
   }
   ttl = ttl + 1;
-  sendPacket(ttl);
+
+  // This is weird but need to be done. Otherwise the next 
+  // package won't be sent.
+  setTimeout(() => { sendPacket(ttl) }, 0);
 }
 
 function getRandomPort() {
