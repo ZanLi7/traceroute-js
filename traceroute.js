@@ -15,7 +15,7 @@ let timeout;
 
 let numberOfAttempts = 0;
 
-const MAX_TIMEOUT_IN_MILLISECONDS = 5000;
+const MAX_TIMEOUT_IN_MILLISECONDS = 1000;
 const MAX_HOPS = 64;
 
 setImmediate(() => {
@@ -56,8 +56,6 @@ function sendPacket() {
   });
 }
 
-let timeOutLine;
-
 function logReply(source) {
   if (timeout) {
     clearTimeout(timeout);
@@ -74,17 +72,17 @@ function logReply(source) {
     } else {
       process.stdout.write(`   ${elapsedTime} ms`);
     }
-
-    if ((source == DESTINATION_IP && numberOfAttempts >= 3) || ttl >= MAX_HOPS) {
-      process.exit();
-    }
   } else {
     if (numberOfAttempts === 1) {
       process.stdout.write('\n');
-      process.stdout.write(` ${ttl}   *`);
+      process.stdout.write(` ${ttl}  *`);
     } else {
-      process.stdout.write('  * ');
+      process.stdout.write(' *');
     }
+  }
+
+  if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
+    process.exit();
   }
 
   // Postpone sendPacket to the next tick of the event loop,
