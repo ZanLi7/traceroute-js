@@ -82,6 +82,7 @@ function logReply(source) {
   }
 
   if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
+    process.stdout.write("\n");
     process.exit();
   }
 
