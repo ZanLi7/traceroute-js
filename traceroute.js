@@ -5,6 +5,8 @@ const dns = require('dns-then');
 const icmpSocket = raw.createSocket('icmp');
 const udpSocket = dgram.createSocket('udp4');
 
+const MAX_HOPS = 64;
+const MAX_TIMEOUT_IN_MILLISECONDS = 1000;
 const DESTINATION_HOST = process.argv[2];
 let DESTINATION_IP;
 
@@ -15,8 +17,7 @@ let timeout;
 
 let numberOfAttempts = 0;
 
-const MAX_TIMEOUT_IN_MILLISECONDS = 1000;
-const MAX_HOPS = 64;
+startTrace();
 
 setImmediate(() => {
   icmpSocket.on('message', function (buffer, source) {
@@ -37,7 +38,7 @@ async function startTrace() {
   });
 }
 
-startTrace();
+
 
 function sendPacket() {
   startTime = process.hrtime();
@@ -77,7 +78,7 @@ function handleReply(source) {
   }
 
   if (result.times.length >= 3) {
-    console.log(` ${ttl}  ${result.source ? result.source : ''} ${result.times[0]} ${result.times[1]} ${result.times[2]}`);
+    console.log(` ${ttl}  ${result.source ? result.source + '  ' : ''}${result.times[0]} ${result.times[1]} ${result.times[2]}`);
     result = {
       times: []
     };
