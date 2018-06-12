@@ -8,7 +8,7 @@ const udpSocket = dgram.createSocket('udp4');
 const DESTINATION_HOST = process.argv[2];
 let DESTINATION_IP;
 
-let PORT;
+let port = 33434;
 let ttl = 1;
 let startTime;
 let timeout;
@@ -22,8 +22,8 @@ setImmediate(() => {
   icmpSocket.on('message', function (buffer, source) {
     let p = buffer.toString('hex').substr(100, 4);
     let portNumber = parseInt(p, 16);
-    if (PORT === portNumber) {
-      logReply(source);
+    if (port === portNumber) {
+      handleReply(source);
     }
   });
 });
@@ -40,8 +40,8 @@ async function startTrace() {
 startTrace();
 
 function sendPacket() {
-  startTime = Date.now();
-  PORT = getRandomPort();
+  startTime = process.hrtime();
+  port++;
 
   if (numberOfAttempts >= 3) {
     numberOfAttempts = 0;
@@ -50,51 +50,46 @@ function sendPacket() {
   numberOfAttempts++;
 
   udpSocket.setTTL(ttl);
-  udpSocket.send(new Buffer(''), 0, 0, PORT, DESTINATION_IP, function (err) {
+  udpSocket.send(new Buffer(''), 0, 0, port, DESTINATION_IP, function (err) {
     if (err) throw err;
-    timeout = setTimeout(logReply, MAX_TIMEOUT_IN_MILLISECONDS);
+    timeout = setTimeout(handleReply, MAX_TIMEOUT_IN_MILLISECONDS);
   });
 }
 
-function logReply(source) {
+let result = {};
+
+function handleReply(source) {
   if (timeout) {
     clearTimeout(timeout);
   }
 
-  if (source) {
-    const elapsedTime = Date.now() - startTime;
+  const endTime = process.hrtime(startTime);
+  const timeString = `${(endTime[1] / 1000000).toFixed(3)} ms`;
 
-    if (numberOfAttempts === 1) {
-      if (ttl > 1) {
-        process.stdout.write('\n');
-      }
-      process.stdout.write(` ${ttl}  ${source} ${elapsedTime} ms`);
-    } else {
-      process.stdout.write(`   ${elapsedTime} ms`);
-    }
-  } else {
-    if (numberOfAttempts === 1) {
-      process.stdout.write('\n');
-      process.stdout.write(` ${ttl}  *`);
-    } else {
-      process.stdout.write(' *');
-    }
+  if (source && numberOfAttempts === 1) {
+    result.source = source;
+    result.times = [];
+    result.times.push(timeString);
+  } else if (source && numberOfAttempts <= 3) {
+    result.times.push(timeString);
+  } else if (numberOfAttempts <= 3) {
+    result.times.push('*');
+  }
+
+  if (result.times.length >= 3) {
+    console.log(` ${ttl}  ${result.source ? result.source : ''} ${result.times[0]} ${result.times[1]} ${result.times[2]}`);
+    result = {
+      times: []
+    };
   }
 
   if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
-    process.stdout.write("\n");
     process.exit();
   }
 
   // Postpone sendPacket to the next tick of the event loop,
   // otherwise the package won't be sent.
   setImmediate(sendPacket);
-}
-
-function getRandomPort() {
-  const PORT_MIN = 33434;
-  const PORT_MAX = 33534;
-  return Math.floor(Math.random() * (PORT_MAX - PORT_MIN) + PORT_MIN);
 }
 
 function getIPAddress(host) {
