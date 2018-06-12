@@ -14,6 +14,7 @@ let port = 33434;
 let ttl = 1;
 let startTime;
 let timeout;
+let result = [];
 
 let numberOfAttempts = 0;
 
@@ -38,8 +39,6 @@ async function startTrace() {
   });
 }
 
-
-
 function sendPacket() {
   startTime = process.hrtime();
   port++;
@@ -57,31 +56,31 @@ function sendPacket() {
   });
 }
 
-let result = {};
-
 function handleReply(source) {
   if (timeout) {
     clearTimeout(timeout);
   }
 
-  const endTime = process.hrtime(startTime);
-  const timeString = `${(endTime[1] / 1000000).toFixed(3)} ms`;
-
-  if (source && numberOfAttempts === 1) {
-    result.source = source;
-    result.times = [];
-    result.times.push(timeString);
-  } else if (source && numberOfAttempts <= 3) {
-    result.times.push(timeString);
-  } else if (numberOfAttempts <= 3) {
-    result.times.push('*');
+  if (source) {
+    const endTime = process.hrtime(startTime);
+    const timeString = `${(endTime[1] / 1000000).toFixed(3)} ms`;
+    result.push({
+      source,
+      timeString
+    });
+  } else {
+    result.push({
+      source: '*',
+      timeString: '*'
+    });
   }
 
-  if (result.times.length >= 3) {
-    console.log(` ${ttl}  ${result.source ? result.source + '  ' : ''}${result.times[0]} ${result.times[1]} ${result.times[2]}`);
-    result = {
-      times: []
-    };
+  if (result.length >= 3) {
+    result.forEach((res) => {
+      // TODO: Group if the ip is the same
+      console.log(` ${ttl}  ${res.source} ${res.timeString}`);
+    });
+    result = [];
   }
 
   if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
