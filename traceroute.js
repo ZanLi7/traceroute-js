@@ -13,27 +13,28 @@ let DESTINATION_IP;
 
 let port = 33434;
 let ttl = 1;
+let tries = 0;
+
 let startTime;
 let timeout;
-let numberOfAttempts = 0;
 let previousIP;
 
 startTrace();
 
 setImmediate(() => {
-  icmpSocket.on('message', async function (buffer, source) {
+  icmpSocket.on('message', async function (buffer, ip) {
     let p = buffer.toString('hex').substr(100, 4);
     let portNumber = parseInt(p, 16);
     if (port === portNumber) {
       let symbolicAddress;
       try {
         if (!NUMERIC_ONLY) {
-          symbolicAddress = await getSymbolicAddress(source);
+          symbolicAddress = await getSymbolicAddress(ip);
         }
-        handleReply(source, symbolicAddress);
+        handleReply(ip, symbolicAddress);
       } catch (e) {
         symbolicAddress = ''
-        handleReply(source, symbolicAddress);
+        handleReply(ip, symbolicAddress);
       }
     }
   });
@@ -52,11 +53,11 @@ function sendPacket() {
   startTime = process.hrtime();
   port++;
 
-  if (numberOfAttempts >= 3) {
-    numberOfAttempts = 0;
+  if (tries >= 3) {
+    tries = 0;
     ttl++;
   }
-  numberOfAttempts++;
+  tries++;
 
   udpSocket.setTTL(ttl);
   udpSocket.send(new Buffer(''), 0, 0, port, DESTINATION_IP, function (err) {
@@ -65,36 +66,35 @@ function sendPacket() {
   });
 }
 
-function handleReply(source, symbolicAddress) {
+function handleReply(ip, symbolicAddress) {
   if (timeout) {
     clearTimeout(timeout);
   }
 
-  if (source) {
-    const endTime = process.hrtime(startTime);
-    const timeString = `${(endTime[1] / 1000000).toFixed(3)} ms`;
+  if (ip) {
+    const elapsedTime = `${(process.hrtime(startTime)[1] / 1000000).toFixed(3)} ms`;
 
-    if (source === previousIP) {
-      process.stdout.write(`  ${timeString}`);
-    } else if (numberOfAttempts === 1) {
-      process.stdout.write(`\n ${ttl}  ${symbolicAddress[0] ? symbolicAddress[0] : source} (${source}) ${timeString}`);
+    if (ip === previousIP) {
+      process.stdout.write(`  ${elapsedTime}`);
+    } else if (tries === 1) {
+      process.stdout.write(`\n ${ttl}  ${symbolicAddress[0] ? symbolicAddress[0] : ip} (${ip}) ${elapsedTime}`);
     } else {
-      process.stdout.write(`\n    ${symbolicAddress[0] ? symbolicAddress[0] : source} (${source}) ${timeString}`);
+      process.stdout.write(`\n    ${symbolicAddress[0] ? symbolicAddress[0] : ip} (${ip}) ${elapsedTime}`);
     }
   } else {
-    if (numberOfAttempts === 1) {
+    if (tries === 1) {
       process.stdout.write(`\n ${ttl}  * `);
     } else {
       process.stdout.write(`* `);
     }
   }
 
-  if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
+  if ((ip == DESTINATION_IP && tries === 3) || ttl >= MAX_HOPS) {
     console.log('');
     process.exit();
   }
 
-  previousIP = source;
+  previousIP = ip;
 
   // Postpone sendPacket to the next tick of the event loop,
   // otherwise the package won't be sent.
