@@ -15,7 +15,6 @@ let ttl = 1;
 let startTime;
 let timeout;
 let result = [];
-
 let numberOfAttempts = 0;
 
 startTrace();
@@ -70,16 +69,24 @@ function handleReply(source) {
     });
   } else {
     result.push({
-      source: '*',
       timeString: '*'
     });
   }
 
   if (result.length >= 3) {
-    result.forEach((res) => {
-      // TODO: Group if the ip is the same
-      console.log(` ${ttl}  ${res.source} ${res.timeString}`);
-    });
+    const output = result.reduce(((accumulator, current, index, array) => {
+      if (index === 0) {
+        accumulator = accumulator + ` ${ttl}  ${current.source ? current.source + ' ' : ''} ${current.timeString}`;
+      }
+      if (index >= 1 && current.source === array[index - 1].source) {
+        accumulator = accumulator + `  ${current.timeString}`;
+      } else if (index >= 1) {
+        accumulator = accumulator + `\n    ${current.source}  ${current.timeString}`;
+      }
+      return accumulator;
+    }), '');
+
+    console.log(output);
     result = [];
   }
 
