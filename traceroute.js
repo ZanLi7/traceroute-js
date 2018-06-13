@@ -7,7 +7,8 @@ const udpSocket = dgram.createSocket('udp4');
 
 const MAX_HOPS = 64;
 const MAX_TIMEOUT_IN_MILLISECONDS = 1000;
-const DESTINATION_HOST = process.argv[2];
+const DESTINATION_HOST = process.argv[process.argv.length - 1];
+const NUMERIC_ONLY = process.argv[process.argv.length - 2] === '-n';
 let DESTINATION_IP;
 
 let port = 33434;
@@ -20,11 +21,20 @@ let previousIP;
 startTrace();
 
 setImmediate(() => {
-  icmpSocket.on('message', function (buffer, source) {
+  icmpSocket.on('message', async function (buffer, source) {
     let p = buffer.toString('hex').substr(100, 4);
     let portNumber = parseInt(p, 16);
     if (port === portNumber) {
-      handleReply(source);
+      let symbolicAddress;
+      try {
+        if (!NUMERIC_ONLY) {
+          symbolicAddress = await getSymbolicAddress(source);
+        }
+        handleReply(source, symbolicAddress);
+      } catch (e) {
+        symbolicAddress = ''
+        handleReply(source, symbolicAddress);
+      }
     }
   });
 });
@@ -55,7 +65,7 @@ function sendPacket() {
   });
 }
 
-function handleReply(source) {
+function handleReply(source, symbolicAddress) {
   if (timeout) {
     clearTimeout(timeout);
   }
@@ -67,9 +77,9 @@ function handleReply(source) {
     if (source === previousIP) {
       process.stdout.write(`  ${timeString}`);
     } else if (numberOfAttempts === 1) {
-      process.stdout.write(`\n ${ttl}  ${source ? source + ' ' : ''} ${timeString}`);
+      process.stdout.write(`\n ${ttl}  ${symbolicAddress[0] ? symbolicAddress[0] : source} (${source}) ${timeString}`);
     } else {
-      process.stdout.write(`\n    ${source ? source + ' ' : ''} ${timeString}`);
+      process.stdout.write(`\n    ${symbolicAddress[0] ? symbolicAddress[0] : source} (${source}) ${timeString}`);
     }
   } else {
     if (numberOfAttempts === 1) {
@@ -80,6 +90,7 @@ function handleReply(source) {
   }
 
   if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
+    console.log('');
     process.exit();
   }
 
@@ -95,3 +106,8 @@ function getIPAddress(host) {
   if (!validIPAddress.test(host)) return dns.lookup(host);
   return host;
 }
+
+function getSymbolicAddress(ipAddress) {
+  return dns.reverse(ipAddress);
+}
+
