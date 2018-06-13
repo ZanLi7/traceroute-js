@@ -16,6 +16,7 @@ let startTime;
 let timeout;
 let result = [];
 let numberOfAttempts = 0;
+let previousIP;
 
 startTrace();
 
@@ -63,36 +64,28 @@ function handleReply(source) {
   if (source) {
     const endTime = process.hrtime(startTime);
     const timeString = `${(endTime[1] / 1000000).toFixed(3)} ms`;
-    result.push({
-      source,
-      timeString
-    });
-  } else {
-    result.push({
-      timeString: '*'
-    });
-  }
 
-  if (result.length >= 3) {
-    const output = result.reduce(((accumulator, current, index, array) => {
-      if (index === 0) {
-        accumulator = accumulator + ` ${ttl}  ${current.source ? current.source + ' ' : ''} ${current.timeString}`;
-      }
-      if (index >= 1 && current.source === array[index - 1].source) {
-        accumulator = accumulator + `  ${current.timeString}`;
-      } else if (index >= 1) {
-        accumulator = accumulator + `\n    ${current.source}  ${current.timeString}`;
-      }
-      return accumulator;
-    }), '');
-
-    console.log(output);
+    if (source === previousIP) {
+      process.stdout.write(`  ${timeString}`);
+    } else if (numberOfAttempts === 1) {
+      process.stdout.write(`\n ${ttl}  ${source ? source + ' ' : ''} ${timeString}`);
+    } else {
+      process.stdout.write(`\n    ${source ? source + ' ' : ''} ${timeString}`);
+    }
     result = [];
+  } else {
+    if (numberOfAttempts === 1) {
+      process.stdout.write(`\n ${ttl}  * `);
+    } else {
+      process.stdout.write(`* `);
+    }
   }
 
   if ((source == DESTINATION_IP && numberOfAttempts === 3) || ttl >= MAX_HOPS) {
     process.exit();
   }
+
+  previousIP = source;
 
   // Postpone sendPacket to the next tick of the event loop,
   // otherwise the package won't be sent.
