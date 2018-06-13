@@ -14,7 +14,6 @@ let port = 33434;
 let ttl = 1;
 let startTime;
 let timeout;
-let result = [];
 let numberOfAttempts = 0;
 let previousIP;
 
@@ -72,7 +71,6 @@ function handleReply(source) {
     } else {
       process.stdout.write(`\n    ${source ? source + ' ' : ''} ${timeString}`);
     }
-    result = [];
   } else {
     if (numberOfAttempts === 1) {
       process.stdout.write(`\n ${ttl}  * `);
