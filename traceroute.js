@@ -8,7 +8,8 @@ const udpSocket = dgram.createSocket('udp4');
 const MAX_HOPS = 64;
 const MAX_TIMEOUT_IN_MILLISECONDS = 1000;
 const DESTINATION_HOST = process.argv[process.argv.length - 1];
-const NUMERIC_ONLY = process.argv[process.argv.length - 2] === '-n';
+const NO_REVERSE_LOOKUP = process.argv[process.argv.length - 2] === '-n';
+
 let DESTINATION_IP;
 
 let port = 33434;
@@ -26,15 +27,14 @@ setImmediate(() => {
     let p = buffer.toString('hex').substr(100, 4);
     let portNumber = parseInt(p, 16);
     if (port === portNumber) {
-      let symbolicAddress;
       try {
-        if (!NUMERIC_ONLY) {
+        let symbolicAddress;
+        if (!NO_REVERSE_LOOKUP) {
           symbolicAddress = await getSymbolicAddress(ip);
         }
-        handleReply(ip, symbolicAddress);
+        handleReply(ip, symbolicAddress)[0];
       } catch (e) {
-        symbolicAddress = ''
-        handleReply(ip, symbolicAddress);
+        handleReply(ip);
       }
     }
   });
@@ -42,8 +42,7 @@ setImmediate(() => {
 
 async function startTrace() {
   DESTINATION_IP = await getIPAddress(DESTINATION_HOST);
-  console.log(`traceroute to ${DESTINATION_HOST} (${DESTINATION_IP}), 64 hops max, 42 byte packets`);
-
+  console.log(`traceroute to ${DESTINATION_HOST} (${DESTINATION_IP}), ${MAX_HOPS} hops max, 42 byte packets`);
   udpSocket.bind(1234, () => {
     sendPacket();
   });
@@ -77,9 +76,9 @@ function handleReply(ip, symbolicAddress) {
     if (ip === previousIP) {
       process.stdout.write(`  ${elapsedTime}`);
     } else if (tries === 1) {
-      process.stdout.write(`\n ${ttl}  ${symbolicAddress[0] ? symbolicAddress[0] : ip} (${ip}) ${elapsedTime}`);
+      process.stdout.write(`\n ${ttl}  ${symbolicAddress ? symbolicAddress : ip} (${ip}) ${elapsedTime}`);
     } else {
-      process.stdout.write(`\n    ${symbolicAddress[0] ? symbolicAddress[0] : ip} (${ip}) ${elapsedTime}`);
+      process.stdout.write(`\n    ${symbolicAddress ? symbolicAddress : ip} (${ip}) ${elapsedTime}`);
     }
   } else {
     if (tries === 1) {
@@ -96,8 +95,6 @@ function handleReply(ip, symbolicAddress) {
 
   previousIP = ip;
 
-  // Postpone sendPacket to the next tick of the event loop,
-  // otherwise the package won't be sent.
   setImmediate(sendPacket);
 }
 
