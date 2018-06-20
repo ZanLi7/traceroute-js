@@ -30,9 +30,9 @@ setImmediate(() => {
       try {
         let symbolicAddress;
         if (!NO_REVERSE_LOOKUP) {
-          symbolicAddress = await getSymbolicAddress(ip);
+          symbolicAddress = await dns.reverse(ip);
         }
-        handleReply(ip, symbolicAddress)[0];
+        handleReply(ip, symbolicAddress[0]);
       } catch (e) {
         handleReply(ip);
       }
@@ -41,7 +41,7 @@ setImmediate(() => {
 });
 
 async function startTrace() {
-  DESTINATION_IP = await getIPAddress(DESTINATION_HOST);
+  DESTINATION_IP = await dns.lookup(DESTINATION_HOST);
   console.log(`traceroute to ${DESTINATION_HOST} (${DESTINATION_IP}), ${MAX_HOPS} hops max, 42 byte packets`);
   udpSocket.bind(1234, () => {
     sendPacket();
@@ -49,7 +49,6 @@ async function startTrace() {
 }
 
 function sendPacket() {
-  startTime = process.hrtime();
   port++;
 
   if (tries >= 3) {
@@ -59,6 +58,7 @@ function sendPacket() {
   tries++;
 
   udpSocket.setTTL(ttl);
+  startTime = process.hrtime();
   udpSocket.send(new Buffer(''), 0, 0, port, DESTINATION_IP, function (err) {
     if (err) throw err;
     timeout = setTimeout(handleReply, MAX_TIMEOUT_IN_MILLISECONDS);
@@ -94,17 +94,5 @@ function handleReply(ip, symbolicAddress) {
   }
 
   previousIP = ip;
-
   setImmediate(sendPacket);
 }
-
-function getIPAddress(host) {
-  const validIPAddress = new RegExp("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
-  if (!validIPAddress.test(host)) return dns.lookup(host);
-  return host;
-}
-
-function getSymbolicAddress(ipAddress) {
-  return dns.reverse(ipAddress);
-}
-
