@@ -43,9 +43,7 @@ setImmediate(() => {
 async function startTrace() {
   DESTINATION_IP = await dns.lookup(DESTINATION_HOST);
   console.log(`traceroute to ${DESTINATION_HOST} (${DESTINATION_IP}), ${MAX_HOPS} hops max, 42 byte packets`);
-  udpSocket.bind(1234, () => {
-    sendPacket();
-  });
+  udpSocket.bind(1234, () => sendPacket());
 }
 
 function sendPacket() {
